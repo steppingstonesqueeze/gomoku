@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gomoku - Five in a Row</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .game-setup {
+            padding: 30px;
+            text-align: center;
+        }
+
+        .difficulty-section, .player-section {
+            margin-bottom: 30px;
+        }
+
+        .difficulty-section h3, .player-section h3 {
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            color: #555;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+
+        .btn-difficulty {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .btn-difficulty.active {
+            background: #4CAF50;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn-player {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .btn-player.active {
+            background: #1976d2;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+        }
+
+        .btn-start {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+            color: white;
+            font-size: 1.2em;
+            padding: 15px 40px;
+            margin-top: 20px;
+            transform: scale(1);
+        }
+
+        .btn-start:hover {
+            transform: scale(1.05) translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+        }
+
+        .game-area {
+            display: none;
+            padding: 20px;
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .current-player {
+            font-size: 1.2em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .player-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #333;
+        }
+
+        .player-indicator.black {
+            background: #333;
+        }
+
+        .player-indicator.white {
+            background: white;
+        }
+
+        .game-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 0.9em;
+            border-radius: 20px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-hint {
+            background: #ffd54f;
+            color: #f57f17;
+        }
+
+        .btn-hint:hover {
+            background: #ffcc02;
+        }
+
+        .btn-reset {
+            background: #ffcdd2;
+            color: #c62828;
+        }
+
+        .btn-reset:hover {
+            background: #ef9a9a;
+        }
+
+        .board-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .board {
+            background: #deb887;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(15, 25px);
+            grid-template-rows: repeat(15, 25px);
+            gap: 1px;
+            background: #8B4513;
+            padding: 1px;
+        }
+
+        .cell {
+            background: #deb887;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .cell:hover:not(.occupied) {
+            background: rgba(76, 175, 80, 0.2);
+        }
+
+        .cell.hint {
+            background: rgba(255, 213, 79, 0.6) !important;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .stone {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 1px solid #333;
+            transform: scale(0);
+            animation: placeStone 0.3s ease forwards;
+        }
+
+        .stone.black {
+            background: radial-gradient(circle at 30% 30%, #555, #000);
+        }
+
+        .stone.white {
+            background: radial-gradient(circle at 30% 30%, #fff, #ddd);
+        }
+
+        @keyframes placeStone {
+            to { transform: scale(1); }
+        }
+
+        .winning-line {
+            background: rgba(255, 215, 0, 0.3) !important;
+            animation: celebrate 1s ease-in-out infinite alternate;
+        }
+
+        @keyframes celebrate {
+            from { background: rgba(255, 215, 0, 0.3) !important; }
+            to { background: rgba(255, 215, 0, 0.6) !important; }
+        }
+
+        .game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .game-over-content {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .game-over h2 {
+            font-size: 2em;
+            margin-bottom: 10px;
+            color: #4CAF50;
+        }
+
+        .game-over p {
+            font-size: 1.1em;
+            margin-bottom: 30px;
+            color: #666;
+        }
+
+        .status-message {
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: 600;
+            min-height: 24px;
+            color: #555;
+        }
+
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .grid {
+                grid-template-columns: repeat(15, 20px);
+                grid-template-rows: repeat(15, 20px);
+            }
+            
+            .stone {
+                width: 16px;
+                height: 16px;
+            }
+            
+            .game-info {
+                justify-content: center;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>五目並べ Gomoku</h1>
+            <p>Five in a Row - Strategy & Skill</p>
+        </div>
+
+        <div class="game-setup" id="setup">
+            <div class="difficulty-section">
+                <h3>Choose Difficulty</h3>
+                <div class="button-group">
+                    <button class="btn btn-difficulty active" data-difficulty="beginner">Beginner</button>
+                    <button class="btn btn-difficulty" data-difficulty="intermediate">Intermediate</button>
+                    <button class="btn btn-difficulty" data-difficulty="advanced">Advanced</button>
+                </div>
+            </div>
+
+            <div class="player-section">
+                <h3>Who Goes First?</h3>
+                <div class="button-group">
+                    <button class="btn btn-player active" data-first="player">You (Black)</button>
+                    <button class="btn btn-player" data-first="ai">AI (Black)</button>
+                </div>
+            </div>
+
+            <button class="btn btn-start" onclick="startGame()">Start Game</button>
+        </div>
+
+        <div class="game-area" id="gameArea">
+            <div class="game-info">
+                <div class="current-player">
+                    <span id="currentPlayerText">Your Turn</span>
+                    <div class="player-indicator black" id="playerIndicator"></div>
+                </div>
+                <div class="game-controls">
+                    <button class="btn-small btn-hint" onclick="showHint()">💡 Hint</button>
+                    <button class="btn-small btn-reset" onclick="resetGame()">🔄 New Game</button>
+                </div>
+            </div>
+
+            <div class="status-message" id="statusMessage">Click on the board to place your stone</div>
+
+            <div class="board-container">
+                <div class="board">
+                    <div class="grid" id="gameBoard"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-over" id="gameOver">
+        <div class="game-over-content">
+            <h2 id="gameOverTitle">Game Over</h2>
+            <p id="gameOverMessage"></p>
+            <button class="btn btn-start" onclick="resetGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        class GomokuGame {
+            constructor() {
+                this.board = Array(15).fill().map(() => Array(15).fill(0));
+                this.currentPlayer = 1; // 1 = black, 2 = white
+                this.gameActive = false;
+                this.difficulty = 'beginner';
+                this.playerFirst = true;
+                this.aiPlayer = 2;
+                this.humanPlayer = 1;
+                this.hintShown = false;
+                this.gameHistory = [];
+                this.initializeBoard();
+            }
+
+            initializeBoard() {
+                const board = document.getElementById('gameBoard');
+                board.innerHTML = '';
+                
+                for (let row = 0; row < 15; row++) {
+                    for (let col = 0; col < 15; col++) {
+                        const cell = document.createElement('button');
+                        cell.className = 'cell';
+                        cell.dataset.row = row;
+                        cell.dataset.col = col;
+                        cell.addEventListener('click', () => this.handleCellClick(row, col));
+                        board.appendChild(cell);
+                    }
+                }
+            }
+
+            setupGame(difficulty, playerFirst) {
+                this.difficulty = difficulty;
+                this.playerFirst = playerFirst;
+                
+                if (playerFirst) {
+                    this.humanPlayer = 1;
+                    this.aiPlayer = 2;
+                    this.currentPlayer = 1;
+                } else {
+                    this.humanPlayer = 2;
+                    this.aiPlayer = 1;
+                    this.currentPlayer = 1;
+                }
+                
+                this.board = Array(15).fill().map(() => Array(15).fill(0));
+                this.gameActive = true;
+                this.gameHistory = [];
+                this.clearBoard();
+                this.updateUI();
+                
+                // If AI goes first
+                if (!playerFirst) {
+                    setTimeout(() => this.makeAIMove(), 500);
+                }
+            }
+
+            clearBoard() {
+                const cells = document.querySelectorAll('.cell');
+                cells.forEach(cell => {
+                    cell.innerHTML = '';
+                    cell.className = 'cell';
+                });
+                this.clearHints();
+            }
+
+            handleCellClick(row, col) {
+                if (!this.gameActive || this.board[row][col] !== 0 || this.currentPlayer !== this.humanPlayer) {
+                    return;
+                }
+
+                this.makeMove(row, col, this.humanPlayer);
+                
+                if (this.gameActive && this.currentPlayer === this.aiPlayer) {
+                    this.updateStatus('AI is thinking...');
+                    setTimeout(() => this.makeAIMove(), 300);
+                }
+            }
+
+            makeMove(row, col, player) {
+                this.board[row][col] = player;
+                this.gameHistory.push({ row, col, player });
+                
+                const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                const stone = document.createElement('div');
+                stone.className = `stone ${player === 1 ? 'black' : 'white'}`;
+                cell.appendChild(stone);
+                cell.classList.add('occupied');
+                
+                this.clearHints();
+                
+                if (this.checkWin(row, col, player)) {
+                    this.endGame(player);
+                    return;
+                }
+                
+                if (this.isBoardFull()) {
+                    this.endGame(0);
+                    return;
+                }
+                
+                this.currentPlayer = player === 1 ? 2 : 1;
+                this.updateUI();
+            }
+
+            makeAIMove() {
+                if (!this.gameActive) return;
+                
+                const move = this.getBestMove();
+                if (move) {
+                    this.makeMove(move.row, move.col, this.aiPlayer);
+                }
+            }
+
+            getBestMove() {
+                const depth = this.getSearchDepth();
+                let bestScore = -Infinity;
+                let bestMove = null;
+                
+                // Check for immediate wins first
+                for (let row = 0; row < 15; row++) {
+                    for (let col = 0; col < 15; col++) {
+                        if (this.board[row][col] === 0) {
+                            this.board[row][col] = this.aiPlayer;
+                            if (this.checkWin(row, col, this.aiPlayer)) {
+                                this.board[row][col] = 0;
+                                return { row, col };
+                            }
+                            this.board[row][col] = 0;
+                        }
+                    }
+                }
+                
+                // Check for blocks
+                for (let row = 0; row < 15; row++) {
+                    for (let col = 0; col < 15; col++) {
+                        if (this.board[row][col] === 0) {
+                            this.board[row][col] = this.humanPlayer;
+                            if (this.checkWin(row, col, this.humanPlayer)) {
+                                this.board[row][col] = 0;
+                                return { row, col };
+                            }
+                            this.board[row][col] = 0;
+                        }
+                    }
+                }
+                
+                // Use minimax for other moves
+                const moves = this.getViableMoves();
+                for (const move of moves) {
+                    this.board[move.row][move.col] = this.aiPlayer;
+                    const score = this.minimax(depth - 1, false, -Infinity, Infinity);
+                    this.board[move.row][move.col] = 0;
+                    
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMove = move;
+                    }
+                }
+                
+                return bestMove || moves[0];
+            }
+
+            minimax(depth, isMaximizing, alpha, beta) {
+                if (depth === 0) {
+                    return this.evaluateBoard();
+                }
+                
+                if (isMaximizing) {
+                    let maxScore = -Infinity;
+                    const moves = this.getViableMoves().slice(0, 10); // Limit for performance
+                    
+                    for (const move of moves) {
+                        this.board[move.row][move.col] = this.aiPlayer;
+                        const score = this.minimax(depth - 1, false, alpha, beta);
+                        this.board[move.row][move.col] = 0;
+                        
+                        maxScore = Math.max(score, maxScore);
+                        alpha = Math.max(alpha, score);
+                        if (beta <= alpha) break;
+                    }
+                    return maxScore;
+                } else {
+                    let minScore = Infinity;
+                    const moves = this.getViableMoves().slice(0, 10);
+                    
+                    for (const move of moves) {
+                        this.board[move.row][move.col] = this.humanPlayer;
+                        const score = this.minimax(depth - 1, true, alpha, beta);
+                        this.board[move.row][move.col] = 0;
+                        
+                        minScore = Math.min(score, minScore);
+                        beta = Math.min(beta, score);
+                        if (beta <= alpha) break;
+                    }
+                    return minScore;
+                }
+            }
+
+            getSearchDepth() {
+                switch (this.difficulty) {
+                    case 'beginner': return 2;
+                    case 'intermediate': return 3;
+                    case 'advanced': return 4;
+                    default: return 2;
+                }
+            }
+
+            getViableMoves() {
+                const moves = [];
+                for (let row = 0; row < 15; row++) {
+                    for (let col = 0; col < 15; col++) {
+                        if (this.board[row][col] === 0 && this.hasNeighbor(row, col)) {
+                            moves.push({ 
+                                row, 
+                                col, 
+                                score: this.evaluateMove(row, col) 
+                            });
+                        }
+                    }
+                }
+                return moves.sort((a, b) => b.score - a.score);
+            }
+
+            hasNeighbor(row, col) {
+                for (let dr = -2; dr <= 2; dr++) {
+                    for (let dc = -2; dc <= 2; dc++) {
+                        const newRow = row + dr;
+                        const newCol = col + dc;
+                        if (newRow >= 0 && newRow < 15 && newCol >= 0 && newCol < 15) {
+                            if (this.board[newRow][newCol] !== 0) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+
+            evaluateMove(row, col) {
+                let score = 0;
+                const directions = [
+                    [1, 0], [0, 1], [1, 1], [1, -1]
+                ];
+                
+                for (const [dr, dc] of directions) {
+                    // Check both players
+                    score += this.evaluateDirection(row, col, dr, dc, this.aiPlayer) * 2;
+                    score += this.evaluateDirection(row, col, dr, dc, this.humanPlayer);
+                }
+                
+                return score;
+            }
+
+            evaluateDirection(row, col, dr, dc, player) {
+                let count = 0;
+                let blocked = 0;
+                
+                // Count in positive direction
+                for (let i = 1; i < 5; i++) {
+                    const newRow = row + dr * i;
+                    const newCol = col + dc * i;
+                    if (newRow < 0 || newRow >= 15 || newCol < 0 || newCol >= 15) {
+                        blocked++;
+                        break;
+                    }
+                    if (this.board[newRow][newCol] === player) {
+                        count++;
+                    } else if (this.board[newRow][newCol] !== 0) {
+                        blocked++;
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+                
+                // Count in negative direction
+                for (let i = 1; i < 5; i++) {
+                    const newRow = row - dr * i;
+                    const newCol = col - dc * i;
+                    if (newRow < 0 || newRow >= 15 || newCol < 0 || newCol >= 15) {
+                        blocked++;
+                        break;
+                    }
+                    if (this.board[newRow][newCol] === player) {
+                        count++;
+                    } else if (this.board[newRow][newCol] !== 0) {
+                        blocked++;
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+                
+                if (count >= 4) return 10000;
+                if (count === 3 && blocked === 0) return 1000;
+                if (count === 3 && blocked === 1) return 100;
+                if (count === 2 && blocked === 0) return 50;
+                if (count === 2 && blocked === 1) return 10;
+                if (count === 1 && blocked === 0) return 5;
+                
+                return count;
+            }
+
+            evaluateBoard() {
+                let score = 0;
+                
+                for (let row = 0; row < 15; row++) {
+                    for (let col = 0; col < 15; col++) {
+                        if (this.board[row][col] === this.aiPlayer) {
+                            score += this.evaluatePosition(row, col, this.aiPlayer);
+                        } else if (this.board[row][col] === this.humanPlayer) {
+                            score -= this.evaluatePosition(row, col, this.humanPlayer);
+                        }
+                    }
+                }
+                
+                return score;
+            }
+
+            evaluatePosition(row, col, player) {
+                let score = 0;
+                const directions = [[1, 0], [0, 1], [1, 1], [1, -1]];
+                
+                for (const [dr, dc] of directions) {
+                    const line = this.getLineLength(row, col, dr, dc, player);
+                    if (line >= 5) score += 100000;
+                    else if (line === 4) score += 10000;
+                    else if (line === 3) score += 1000;
+                    else if (line === 2) score += 100;
+                    else score += line;
+                }
+                
+                return score;
+            }
+
+            getLineLength(row, col, dr, dc, player) {
+                let count = 1;
+                
+                // Count in positive direction
+                for (let i = 1; i < 5; i++) {
+                    const newRow = row + dr * i;
+                    const newCol = col + dc * i;
+                    if (newRow >= 0 && newRow < 15 && newCol >= 0 && newCol < 15 && 
+                        this.board[newRow][newCol] === player) {
+                        count++;
+                    } else {
+                        break;
+                    }
+                }
+                
+                // Count in negative direction
+                for (let i = 1; i < 5; i++) {
+                    const newRow = row - dr * i;
+                    const newCol = col - dc * i;
+                    if (newRow >= 0 && newRow < 15 && newCol >= 0 && newCol < 15 && 
+                        this.board[newRow][newCol] === player) {
+                        count++;
+                    } else {
+                        break;
+                    }
+                }
+                
+                return count;
+            }
+
+            showHint() {
+                if (!this.gameActive || this.currentPlayer !== this.humanPlayer) return;
+                
+                this.clearHints();
+                const move = this.getBestMoveForHint();
+                
+                if (move) {
+                    const cell = document.querySelector(`[data-row="${move.row}"][data-col="${move.col}"]`);
+                    cell.classList.add('hint');
+                    this.hintShown = true;
+                    
+                    setTimeout(() => {
+                        if (cell.classList.contains('hint')) {
+                            cell.classList.remove('hint');
+                        }
+                    }, 3000);
+                }
+            }
+
+            getBestMoveForHint() {
+                // Simplified hint system - find threatening moves or blocks
+                for (let row = 0; row < 15; row++) {
+                    for (let col = 0; col < 15; col++) {
+                        if (this.board[row][col] === 0) {
+                            // Check if this move creates a threat
+                            this.board[row][col] = this.humanPlayer;
+                            if (this.getLineLength(row, col, 1, 0, this.humanPlayer) >= 4 ||
+                                this.getLineLength(row, col, 0, 1, this.humanPlayer) >= 4 ||
+                                this.getLineLength(row, col, 1, 1, this.humanPlayer) >= 4 ||
+                                this.getLineLength(row, col, 1, -1, this.humanPlayer) >= 4) {
+                                this.board[row][col] = 0;
+                                return { row, col };
+                            }
+                            this.board[row][col] = 0;
+                            
+                            // Check if this blocks opponent threat
+                            this.board[row][col] = this.aiPlayer;
+                            if (this.getLineLength(row, col, 1, 0, this.aiPlayer) >= 4 ||
+                                this.getLineLength(row, col, 0, 1, this.aiPlayer) >= 4 ||
+                                this.getLineLength(row, col, 1, 1, this.aiPlayer) >= 4 ||
+                                this.getLineLength(row, col, 1, -1, this.aiPlayer) >= 4) {
+                                this.board[row][col] = 0;
+                                return { row, col };
+                            }
+                            this.board[row][col] = 0;
+                        }
+                    }
+                }
+                
+                return this.getBestMove();
+            }
+
+            clearHints() {
+                document.querySelectorAll('.hint').forEach(cell => {
+                    cell.classList.remove('hint');
+                });
+            }
+
+            checkWin(row, col, player) {
+                const directions = [
+                    [1, 0], [0, 1], [1, 1], [1, -1]
+                ];
+                
+                for (const [dr, dc] of directions) {
+                    let count = 1;
+                    const winningCells = [[row, col]];
+                    
+                    // Check positive direction
+                    for (let i = 1; i < 5; i++) {
+                        const newRow = row + dr * i;
+                        const newCol = col + dc * i;
+                        if (newRow >= 0 && newRow < 15 && newCol >= 0 && newCol < 15 && 
+                            this.board[newRow][newCol] === player) {
+                            count++;
+                            winningCells.push([newRow, newCol]);
+                        } else break;
+                    }
+                    
+                    // Check negative direction
+                    for (let i = 1; i < 5; i++) {
+                        const newRow = row - dr * i;
+                        const newCol = col - dc * i;
+                        if (newRow >= 0 && newRow < 15 && newCol >= 0 && newCol < 15 && 
+                            this.board[newRow][newCol] === player) {
+                            count++;
+                            winningCells.push([newRow, newCol]);
+                        } else break;
+                    }
+                    
+                    if (count >= 5) {
+                        this.highlightWinningLine(winningCells);
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            highlightWinningLine(cells) {
+                cells.forEach(([row, col]) => {
+                    const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                    cell.classList.add('winning-line');
+                });
+            }
+
+            isBoardFull() {
+                return this.board.every(row => row.every(cell => cell !== 0));
+            }
+
+            endGame(winner) {
+                this.gameActive = false;
+                this.clearHints();
+                
+                const gameOverModal = document.getElementById('gameOver');
+                const title = document.getElementById('gameOverTitle');
+                const message = document.getElementById('gameOverMessage');
+                
+                if (winner === 0) {
+                    title.textContent = "It's a Draw!";
+                    message.textContent = "The board is full. Well played!";
+                } else if (winner === this.humanPlayer) {
+                    title.textContent = "You Win! 🎉";
+                    message.textContent = "Congratulations! You got five in a row!";
+                } else {
+                    title.textContent = "AI Wins";
+                    message.textContent = "Better luck next time! Try again?";
+                }
+                
+                setTimeout(() => {
+                    gameOverModal.style.display = 'flex';
+                }, 1000);
+            }
+
+            updateUI() {
+                const currentPlayerText = document.getElementById('currentPlayerText');
+                const playerIndicator = document.getElementById('playerIndicator');
+                const statusMessage = document.getElementById('statusMessage');
+                
+                if (!this.gameActive) return;
+                
+                if (this.currentPlayer === this.humanPlayer) {
+                    currentPlayerText.textContent = 'Your Turn';
+                    playerIndicator.className = `player-indicator ${this.humanPlayer === 1 ? 'black' : 'white'}`;
+                    statusMessage.textContent = 'Click on the board to place your stone';
+                } else {
+                    currentPlayerText.textContent = 'AI Turn';
+                    playerIndicator.className = `player-indicator ${this.aiPlayer === 1 ? 'black' : 'white'}`;
+                    statusMessage.textContent = 'AI is thinking...';
+                }
+            }
+
+            updateStatus(message) {
+                document.getElementById('statusMessage').textContent = message;
+            }
+        }
+
+        // Game instance
+        let game = new GomokuGame();
+
+        // UI Functions
+        function setupDifficultyButtons() {
+            document.querySelectorAll('.btn-difficulty').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.btn-difficulty').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+        }
+
+        function setupPlayerButtons() {
+            document.querySelectorAll('.btn-player').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.btn-player').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+        }
+
+        function startGame() {
+            const difficulty = document.querySelector('.btn-difficulty.active').dataset.difficulty;
+            const playerFirst = document.querySelector('.btn-player.active').dataset.first === 'player';
+            
+            document.getElementById('setup').style.display = 'none';
+            document.getElementById('gameArea').style.display = 'block';
+            
+            game.setupGame(difficulty, playerFirst);
+        }
+
+        function showHint() {
+            game.showHint();
+        }
+
+        function resetGame() {
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('setup').style.display = 'block';
+            document.getElementById('gameArea').style.display = 'none';
+            
+            game = new GomokuGame();
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            setupDifficultyButtons();
+            setupPlayerButtons();
+        });
+    </script>
+</body>
+</html>
+                
