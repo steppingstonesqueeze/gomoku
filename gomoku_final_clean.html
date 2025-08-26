@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Gomoku</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .setup {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 15px 0;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            background: #f0f0f0;
+            color: #333;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #e0e0e0;
+        }
+
+        .btn.active {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-start {
+            background: #ff6b6b;
+            color: white;
+            font-size: 16px;
+            padding: 15px 30px;
+            margin-top: 20px;
+        }
+
+        .btn-start:hover {
+            background: #ff5252;
+        }
+
+        .game-area {
+            display: none;
+        }
+
+        .board {
+            background: #deb887;
+            padding: 15px;
+            border-radius: 8px;
+            display: inline-block;
+            margin: 20px auto;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(15, 25px);
+            grid-template-rows: repeat(15, 25px);
+            gap: 1px;
+            background: #8B4513;
+        }
+
+        .cell {
+            background: #deb887;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cell:hover:not(.occupied) {
+            background: rgba(76, 175, 80, 0.3);
+        }
+
+        .stone {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 1px solid #333;
+        }
+
+        .stone.black {
+            background: #333;
+        }
+
+        .stone.white {
+            background: white;
+        }
+
+        .status {
+            text-align: center;
+            font-size: 18px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .game-over-content {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 Smart Gomoku</h1>
+        
+        <div class="setup" id="setup">
+            <h3>Choose Difficulty</h3>
+            <div class="btn-group">
+                <button class="btn active" id="easy">Beginner</button>
+                <button class="btn" id="medium">Intermediate</button>
+                <button class="btn" id="hard">Expert</button>
+            </div>
+            
+            <h3>Who Goes First?</h3>
+            <div class="btn-group">
+                <button class="btn active" id="player-first">You</button>
+                <button class="btn" id="ai-first">AI</button>
+            </div>
+            
+            <button class="btn btn-start" id="start">Start Game</button>
+        </div>
+
+        <div class="game-area" id="game">
+            <div class="status" id="status">Your turn</div>
+            <div class="controls">
+                <button class="btn" id="hint">💡 Hint</button>
+                <button class="btn" id="reset">🔄 New Game</button>
+            </div>
+            <div style="text-align: center;">
+                <div class="board">
+                    <div class="grid" id="board"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-over" id="gameover">
+        <div class="game-over-content">
+            <h2 id="winner">Game Over</h2>
+            <p id="message">Result message</p>
+            <button class="btn btn-start" onclick="newGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // Game state
+        let difficulty = 'easy';
+        let playerFirst = true;
+        let board = [];
+        let currentPlayer = 1;
+        let gameActive = false;
+        let aiPlayer = 2;
+        let humanPlayer = 1;
+
+        // Smart AI that understands Gomoku
+        function findBestMove(board, player) {
+            // 1. Check for immediate wins
+            const winMove = findWinningMove(board, player);
+            if (winMove) return winMove;
+            
+            // 2. Block opponent wins
+            const blockMove = findWinningMove(board, 3 - player);
+            if (blockMove) return blockMove;
+            
+            // 3. Look for tactical moves
+            const moves = [];
+            
+            for (let r = 0; r < 15; r++) {
+                for (let c = 0; c < 15; c++) {
+                    if (board[r][c] === 0 && hasNeighborStone(board, r, c)) {
+                        const score = evaluatePosition(board, r, c, player);
+                        moves.push({row: r, col: c, score: score});
+                    }
+                }
+            }
+            
+            // If no moves, play center
+            if (moves.length === 0) {
+                return [7, 7];
+            }
+            
+            // Sort by score and pick best
+            moves.sort((a, b) => b.score - a.score);
+            
+            // Add some variety among top moves
+            const topMoves = moves.slice(0, Math.min(3, moves.length));
+            const selected = topMoves[Math.floor(Math.random() * topMoves.length)];
+            
+            return [selected.row, selected.col];
+        }
+
+        function findWinningMove(board, player) {
+            for (let r = 0; r < 15; r++) {
+                for (let c = 0; c < 15; c++) {
+                    if (board[r][c] === 0) {
+                        board[r][c] = player;
+                        if (checkWinAt(board, r, c, player)) {
+                            board[r][c] = 0;
+                            return [r, c];
+                        }
+                        board[r][c] = 0;
+                    }
+                }
+            }
+            return null;
+        }
+
+        function hasNeighborStone(board, r, c) {
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    const nr = r + dr, nc = c + dc;
+                    if (nr >= 0 && nr < 15 && nc >= 0 && nc < 15 && board[nr][nc] !== 0) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function evaluatePosition(board, r, c, player) {
+            let totalScore = 0;
+            const directions = [[1,0], [0,1], [1,1], [1,-1]];
+            
+            for (const [dr, dc] of directions) {
+                const playerScore = evaluateDirection(board, r, c, dr, dc, player);
+                const opponentScore = evaluateDirection(board, r, c, dr, dc, 3 - player);
+                totalScore += playerScore * 2 + opponentScore;
+            }
+            
+            return totalScore;
+        }
+
+        function evaluateDirection(board, r, c, dr, dc, player) {
+            let count = 0;
+            let openEnds = 0;
+            
+            // Check positive direction
+            for (let i = 1; i <= 4; i++) {
+                const nr = r + dr * i, nc = c + dc * i;
+                if (nr < 0 || nr >= 15 || nc < 0 || nc >= 15) break;
+                
+                if (board[nr][nc] === player) {
+                    count++;
+                } else if (board[nr][nc] === 0) {
+                    if (i === 1) openEnds++;
+                    break;
+                } else {
+                    break;
+                }
+            }
+            
+            // Check negative direction  
+            for (let i = 1; i <= 4; i++) {
+                const nr = r - dr * i, nc = c - dc * i;
+                if (nr < 0 || nr >= 15 || nc < 0 || nc >= 15) break;
+                
+                if (board[nr][nc] === player) {
+                    count++;
+                } else if (board[nr][nc] === 0) {
+                    if (i === 1) openEnds++;
+                    break;
+                } else {
+                    break;
+                }
+            }
+            
+            // Score patterns
+            if (count >= 4) return 100000;
+            if (count === 3 && openEnds === 2) return 50000;
+            if (count === 3 && openEnds === 1) return 10000;
+            if (count === 2 && openEnds === 2) return 5000;
+            if (count === 2 && openEnds === 1) return 1000;
+            if (count === 1 && openEnds === 2) return 500;
+            if (count === 1 && openEnds === 1) return 100;
+            
+            return count * 10;
+        }
+
+        function checkWinAt(board, r, c, player) {
+            const dirs = [[1,0], [0,1], [1,1], [1,-1]];
+            for (const [dr, dc] of dirs) {
+                let count = 1;
+                for (let i = 1; i < 5; i++) {
+                    const nr = r + dr * i, nc = c + dc * i;
+                    if (nr >= 0 && nr < 15 && nc >= 0 && nc < 15 && board[nr][nc] === player) {
+                        count++;
+                    } else break;
+                }
+                for (let i = 1; i < 5; i++) {
+                    const nr = r - dr * i, nc = c - dc * i;
+                    if (nr >= 0 && nr < 15 && nc >= 0 && nc < 15 && board[nr][nc] === player) {
+                        count++;
+                    } else break;
+                }
+                if (count >= 5) return true;
+            }
+            return false;
+        }
+
+        // Game functions
+        function init() {
+            document.getElementById('easy').onclick = () => setActive('easy', 'medium', 'hard');
+            document.getElementById('medium').onclick = () => setActive('medium', 'easy', 'hard');
+            document.getElementById('hard').onclick = () => setActive('hard', 'easy', 'medium');
+            document.getElementById('player-first').onclick = () => setActive('player-first', 'ai-first');
+            document.getElementById('ai-first').onclick = () => setActive('ai-first', 'player-first');
+            document.getElementById('start').onclick = startGame;
+            document.getElementById('hint').onclick = showHint;
+            document.getElementById('reset').onclick = newGame;
+            
+            createBoard();
+        }
+
+        function setActive(activeId, ...inactiveIds) {
+            document.getElementById(activeId).classList.add('active');
+            inactiveIds.forEach(id => document.getElementById(id).classList.remove('active'));
+            
+            if (activeId === 'player-first') playerFirst = true;
+            if (activeId === 'ai-first') playerFirst = false;
+            if (activeId === 'easy') difficulty = 'easy';
+            if (activeId === 'medium') difficulty = 'medium';
+            if (activeId === 'hard') difficulty = 'hard';
+        }
+
+        function createBoard() {
+            const boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+            board = Array(15).fill().map(() => Array(15).fill(0));
+            
+            for (let r = 0; r < 15; r++) {
+                for (let c = 0; c < 15; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.onclick = () => makeMove(r, c);
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        function startGame() {
+            document.getElementById('setup').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
+            
+            gameActive = true;
+            currentPlayer = 1;
+            
+            if (playerFirst) {
+                humanPlayer = 1;
+                aiPlayer = 2;
+            } else {
+                humanPlayer = 2;
+                aiPlayer = 1;
+                setTimeout(aiMove, 500);
+            }
+            
+            updateStatus();
+        }
+
+        function makeMove(r, c) {
+            if (!gameActive || board[r][c] !== 0 || currentPlayer !== humanPlayer) return;
+            
+            board[r][c] = currentPlayer;
+            updateBoard();
+            
+            if (checkWin(r, c, currentPlayer)) {
+                endGame(currentPlayer);
+                return;
+            }
+            
+            currentPlayer = 3 - currentPlayer;
+            updateStatus();
+            
+            if (currentPlayer === aiPlayer) {
+                setTimeout(aiMove, 300);
+            }
+        }
+
+        function aiMove() {
+            if (!gameActive) return;
+            
+            document.getElementById('status').textContent = 'AI thinking...';
+            
+            setTimeout(() => {
+                const move = findBestMove(board, aiPlayer);
+                if (move) {
+                    board[move[0]][move[1]] = aiPlayer;
+                    updateBoard();
+                    
+                    if (checkWin(move[0], move[1], aiPlayer)) {
+                        endGame(aiPlayer);
+                        return;
+                    }
+                }
+                
+                currentPlayer = 3 - currentPlayer;
+                updateStatus();
+            }, 100);
+        }
+
+        function checkWin(r, c, player) {
+            return checkWinAt(board, r, c, player);
+        }
+
+        function updateBoard() {
+            const cells = document.querySelectorAll('.cell');
+            for (let r = 0; r < 15; r++) {
+                for (let c = 0; c < 15; c++) {
+                    const cell = cells[r * 15 + c];
+                    cell.innerHTML = '';
+                    if (board[r][c] !== 0) {
+                        const stone = document.createElement('div');
+                        stone.className = `stone ${board[r][c] === 1 ? 'black' : 'white'}`;
+                        cell.appendChild(stone);
+                        cell.classList.add('occupied');
+                    }
+                }
+            }
+        }
+
+        function updateStatus() {
+            const status = document.getElementById('status');
+            if (currentPlayer === humanPlayer) {
+                status.textContent = 'Your turn';
+            } else {
+                status.textContent = 'AI turn';
+            }
+        }
+
+        function endGame(winner) {
+            gameActive = false;
+            const modal = document.getElementById('gameover');
+            const title = document.getElementById('winner');
+            const msg = document.getElementById('message');
+            
+            if (winner === humanPlayer) {
+                title.textContent = 'You Win! 🎉';
+                msg.textContent = 'Congratulations! You beat the smart AI!';
+            } else {
+                title.textContent = 'AI Wins';
+                msg.textContent = 'The AI won this round. Try again!';
+            }
+            
+            modal.style.display = 'flex';
+        }
+
+        function showHint() {
+            if (!gameActive || currentPlayer !== humanPlayer) return;
+            
+            const move = findBestMove(board, humanPlayer);
+            if (move) {
+                const cell = document.querySelectorAll('.cell')[move[0] * 15 + move[1]];
+                cell.style.background = '#ffeb3b';
+                setTimeout(() => {
+                    cell.style.background = '';
+                }, 2000);
+            }
+        }
+
+        function newGame() {
+            document.getElementById('gameover').style.display = 'none';
+            document.getElementById('setup').style.display = 'block';
+            document.getElementById('game').style.display = 'none';
+            createBoard();
+        }
+
+        // Start the app
+        init();
+    </script>
+</body>
+</html>
